@@ -15,7 +15,7 @@
     <div class="top">
       <div class="brand">
         <h1>呼吸群島 · 討論板</h1>
-        <p>語音定稿 → 規則凝結 → 主題簇（v2 / PR1a）</p>
+        <p>語音定稿 → 規則凝結 → 主題簇 · 手動語者（v2 / PR1b）</p>
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
         <div class="mode-switch" role="group" aria-label="顯示模式">
@@ -34,18 +34,24 @@
         <button class="ghost" id="exportBtn">匯出 JSON</button>
         <button class="ghost" id="importBtn">匯入 JSON</button>
         <button class="ghost" id="toggleLog">隱藏逐字</button>
+        <div class="speaker-switch" id="speakerSwitch" role="group" aria-label="目前語者">
+          <span class="speaker-label">語者</span>
+          <button type="button" data-speaker="S1" class="speaker-btn active" title="快捷鍵 1">1</button>
+          <button type="button" data-speaker="S2" class="speaker-btn" title="快捷鍵 2">2</button>
+          <button type="button" data-speaker="S3" class="speaker-btn" title="快捷鍵 3">3</button>
+        </div>
         <div class="meter" title="麥克風音量"><i id="meter"></i></div>
         <span class="status" id="status">待機</span>
       </div>
       <div class="manual-row">
-        <input id="manualInput" type="text" maxlength="200" placeholder="麥克風掛了？打字後按送出" aria-label="手動輸入" />
+        <input id="manualInput" type="text" maxlength="200" placeholder="麥克風掛了？打字後按送出（會標在目前語者）" aria-label="手動輸入" />
         <button id="manualSend" class="primary">送出</button>
       </div>
       <div class="transcript" id="log"></div>
     </div>
   </div>
   <input type="file" id="fileImport" accept="application/json,.json" />
-  <div class="hint">Chrome · https／localhost · 空白鍵聽／停 · F 全螢幕 · C 清空 · B Board · T Tree<br>只有語音「定稿」會凝結進板；interim 只更新正在聽</div>
+  <div class="hint">Chrome · https／localhost · 空白鍵聽／停 · 1/2/3 切語者 · F 全螢幕 · C 清空 · B Board · T Tree<br>只有語音「定稿」會凝結進板；語者可之後再對姓名（先 S1/S2/S3）</div>
   <script type="module" src="./js/main.js"></script>
 </body>
 </html>

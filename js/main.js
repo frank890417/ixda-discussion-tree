@@ -31,6 +31,10 @@ const heardEl = $('heard');
 const meterEl = $('meter');
 const boardRoot = $('boardRoot');
 const canvas = $('c');
+const speakerSwitch = $('speakerSwitch');
+
+/** @type {import('./model/board.js').SpeakerId} */
+let activeSpeaker = 'S1';
 
 /** @type {import('./model/board.js').Board} */
 let board = loadBoard();
@@ -62,12 +66,28 @@ function setHeard(text, dim) {
   else heardEl.textContent = text;
 }
 
-function addLog(text, kind) {
+function addLog(text, kind, speakerId) {
   const div = document.createElement('div');
   div.className = kind;
-  div.textContent = text;
+  if (speakerId && speakerId !== 'unknown') {
+    div.classList.add('speaker-' + speakerId);
+    const tag = document.createElement('span');
+    tag.className = 'log-speaker ' + speakerId;
+    tag.textContent = speakerId.replace('S', '語者');
+    div.appendChild(tag);
+  }
+  div.appendChild(document.createTextNode(text));
   logEl.prepend(div);
   while (logEl.children.length > 40) logEl.lastChild.remove();
+}
+
+function setActiveSpeaker(id) {
+  if (!['S1', 'S2', 'S3'].includes(id)) return;
+  activeSpeaker = id;
+  speakerSwitch.querySelectorAll('.speaker-btn').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.speaker === id);
+  });
+  setStatus('語者 ' + id.replace('S', '') + ' 發言中', true);
 }
 
 function render() {
@@ -100,16 +120,17 @@ function setMode(next) {
  * @param {{ fromDemo?: boolean }} [meta]
  */
 function ingestFinal(text, meta = {}) {
+  const speakerId = meta.speakerId || activeSpeaker || 'S1';
   const result = condenseFinal(board, text, {
-    speakerId: 'unknown',
+    speakerId,
     speakerSource: 'manual',
   });
   if (!result) return;
   const label = meta.fromDemo ? '[示範] ' : '';
-  addLog(label + result.idea.text, 'final');
+  addLog(label + result.idea.text, 'final', speakerId);
   setHeard(result.idea.text, false);
   setStatus(
-    `凝結：${result.idea.kind} · ${result.idea.text.slice(0, 18)}`,
+    `S${speakerId.replace('S', '')} · ${result.idea.kind} · ${result.idea.text.slice(0, 16)}`,
     true
   );
   render();
@@ -213,17 +234,18 @@ toggleBtn.addEventListener('click', () => {
 
 demoBtn.addEventListener('click', () => {
   const samples = [
-    '今天主題是便利商店的深夜節奏',
-    '為什麼末班車總是讓人焦慮？',
-    '我覺得應該決定加一個休息角',
-    '毛孩陪伴這件事還沒定案',
-    '之後再討論加班島的燈光',
-    '便利商店可以放慢呼吸',
-    '結論是先做會呼吸的陳列',
-    '我們在講溫度與節奏',
+    { text: '今天主題是便利商店的深夜節奏', speakerId: 'S1' },
+    { text: '為什麼末班車總是讓人焦慮？', speakerId: 'S2' },
+    { text: '我覺得應該決定加一個休息角', speakerId: 'S1' },
+    { text: '毛孩陪伴這件事還沒定案', speakerId: 'S3' },
+    { text: '之後再討論加班島的燈光', speakerId: 'S2' },
+    { text: '便利商店可以放慢呼吸', speakerId: 'S3' },
+    { text: '結論是先做會呼吸的陳列', speakerId: 'S1' },
+    { text: '我們在講溫度與節奏', speakerId: 'S2' },
   ];
-  const t = samples[Math.floor(Math.random() * samples.length)];
-  ingestFinal(t, { fromDemo: true });
+  const pick = samples[Math.floor(Math.random() * samples.length)];
+  setActiveSpeaker(pick.speakerId);
+  ingestFinal(pick.text, { fromDemo: true, speakerId: pick.speakerId });
 });
 
 clearBtn.addEventListener('click', () => {
@@ -247,6 +269,12 @@ toggleLogBtn.addEventListener('click', () => {
 
 modeBoardBtn.addEventListener('click', () => setMode('board'));
 modeTreeBtn.addEventListener('click', () => setMode('tree'));
+
+speakerSwitch.addEventListener('click', (e) => {
+  const btn = e.target.closest('.speaker-btn');
+  if (!btn) return;
+  setActiveSpeaker(btn.dataset.speaker);
+});
 
 islandEl.addEventListener('change', () => {
   board.island = islandEl.value.trim() || '未命名的島';
@@ -292,7 +320,10 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'Space') {
     e.preventDefault();
     toggleBtn.click();
-  } else if (e.key === 'f' || e.key === 'F') fullBtn.click();
+  } else if (e.key === '1') setActiveSpeaker('S1');
+  else if (e.key === '2') setActiveSpeaker('S2');
+  else if (e.key === '3') setActiveSpeaker('S3');
+  else if (e.key === 'f' || e.key === 'F') fullBtn.click();
   else if (e.key === 'c' || e.key === 'C') clearBtn.click();
   else if (e.key === 'b' || e.key === 'B') setMode('board');
   else if (e.key === 't' || e.key === 'T') setMode('tree');
@@ -310,4 +341,5 @@ else if (!window.isSecureContext) {
 }
 
 setHeard('按「開始聽」後說話，或手動輸入', true);
+setActiveSpeaker('S1');
 render();
