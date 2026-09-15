@@ -42,12 +42,21 @@ cd ~/Projects/ixda-discussion-tree && python3 -m http.server 8766
 
 相近句子會以字元 bigram 相似度合併（`score++`，保留較長文）。
 
+## 語者標籤（PR1b）
+
+- 預設語者1；按 HUD 按鈕或鍵盤 `1`/`2`/`3` 切換
+- 每條定稿 utterance 帶 `speakerId`（S1/S2/S3）；idea 累積 `speakerIds`
+- Board 卡片與簇標題顯示語者色點；逐字稿左側色條
+- **不做**自動聲紋／diarization（Stretch）；之後可覆蓋手動標籤
+- Demo 會輪流模擬不同語者，方便現場演示
+
 ## 現場用法
 
 - 每組一台筆電開同一頁，接該組螢幕
 - 「島名」改成小組主題（會寫入 board）
 - Demo 可快速長出示範簇；清空會確認
-- 快捷鍵：`Space` 聽／停 · `F` 全螢幕 · `C` 清空 · `B` Board · `T` Tree
+- 快捷鍵：`Space` 聽／停 · `1`/`2`/`3` 切語者 · `F` 全螢幕 · `C` 清空 · `B` Board · `T` Tree
+- HUD「語者 1/2/3」按鈕與快捷鍵同步；定稿／手動輸入／Demo 都會寫入目前語者
 
 ## 架構（靜態可部署）
 
@@ -95,11 +104,12 @@ console.log('q?', classifyKind('怎麼辦？'));
 
 - Web Speech 依賴 Chrome＋網路；吵雜場請靠手動輸入／Demo
 - 凝結是關鍵詞＋字元相似度，不是語意模型；誤分類之後可手動改 kind（PR2）
-- PR1a **尚未**做完整語者分離 UI（模型已留 `speakerId` / `speakerSource`）
+- 語者為**手動**標籤（非自動 diarization）；吵雜場仍可靠
+- 自動 VAD／嵌入分群尚未做（Stretch）
 - 各組一頁互不連線
 
 ## PR 切片
 
-- **PR1a（本分支）**：Board 凝結核心
-- **PR1b**：語者標籤（手動 S1/S2/S3）
+- **PR1a**：Board 凝結核心
+- **PR1b（本分支）**：手動語者 S1/S2/S3＋色標＋快捷鍵
 - 之後：拖曳換簇、PNG、房間同步、雲端 STT
