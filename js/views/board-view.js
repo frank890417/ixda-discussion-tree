@@ -24,8 +24,19 @@ export function renderBoardView(root, board) {
   if (!board.clusters.length) {
     const empty = document.createElement('div');
     empty.className = 'board-empty';
-    empty.innerHTML =
-      '<p>還沒有凝結出主題簇。</p><p class="dim">按「開始聽」說話，或用下方手動輸入／Demo。用 1／2／3 切語者。</p>';
+    empty.innerHTML = `
+      <div class="empty-card">
+        <p class="empty-kicker">Ideation Board</p>
+        <h2>討論會凝成主題簇，不是字貼樹上</h2>
+        <p class="empty-body">語音定稿或手動輸入後，規則會合併相近點子，並標上<strong>主題／點子／結論／待決／問題</strong>。</p>
+        <ol class="empty-steps">
+          <li>先按下方醒目的 <strong>Demo</strong>（一鍵長出多簇）</li>
+          <li>或按「開始聽」說話；只有定稿會進板</li>
+          <li>用 <strong>1／2／3</strong> 標語者</li>
+        </ol>
+        <p class="empty-note">Tree 只是次要投影；預設請留在 Board。</p>
+        <button type="button" class="empty-demo-btn" id="emptyDemoBtn">一鍵 Demo：長出主題簇</button>
+      </div>`;
     root.appendChild(empty);
     return;
   }
