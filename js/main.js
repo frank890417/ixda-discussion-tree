@@ -111,8 +111,12 @@ function render() {
 }
 
 function setMode(next) {
+  if (next === 'tree' && !board.clusters.length) {
+    setStatus('先在 Board 長出主題簇，Tree 只是投影', false);
+  }
   mode = next;
   render();
+  updateDemoPulse();
 }
 
 /**
@@ -232,21 +236,42 @@ toggleBtn.addEventListener('click', () => {
   else startListening();
 });
 
-demoBtn.addEventListener('click', () => {
-  const samples = [
-    { text: '今天主題是便利商店的深夜節奏', speakerId: 'S1' },
-    { text: '為什麼末班車總是讓人焦慮？', speakerId: 'S2' },
-    { text: '我覺得應該決定加一個休息角', speakerId: 'S1' },
-    { text: '毛孩陪伴這件事還沒定案', speakerId: 'S3' },
-    { text: '之後再討論加班島的燈光', speakerId: 'S2' },
-    { text: '便利商店可以放慢呼吸', speakerId: 'S3' },
-    { text: '結論是先做會呼吸的陳列', speakerId: 'S1' },
-    { text: '我們在講溫度與節奏', speakerId: 'S2' },
-  ];
-  const pick = samples[Math.floor(Math.random() * samples.length)];
-  setActiveSpeaker(pick.speakerId);
-  ingestFinal(pick.text, { fromDemo: true, speakerId: pick.speakerId });
+const DEMO_SCRIPT = [
+  { text: '今天主題是便利商店的深夜節奏', speakerId: 'S1' },
+  { text: '我們在講溫度與節奏', speakerId: 'S2' },
+  { text: '為什麼末班車總是讓人焦慮？', speakerId: 'S2' },
+  { text: '毛孩陪伴這件事還沒定案', speakerId: 'S3' },
+  { text: '之後再討論加班島的燈光', speakerId: 'S3' },
+  { text: '我覺得應該決定加一個休息角', speakerId: 'S1' },
+  { text: '結論是先做會呼吸的陳列', speakerId: 'S1' },
+  { text: '便利商店可以放慢呼吸', speakerId: 'S2' },
+];
+
+function runDemoBoard() {
+  setMode('board');
+  // One click → full board of clusters (not a single random twig)
+  for (const pick of DEMO_SCRIPT) {
+    setActiveSpeaker(pick.speakerId);
+    ingestFinal(pick.text, { fromDemo: true, speakerId: pick.speakerId });
+  }
+  setStatus('Demo：已凝成主題簇（Board）', true);
+  setHeard('這是 ideation board，不是字貼樹', false);
+  updateDemoPulse();
+}
+
+demoBtn.addEventListener('click', () => runDemoBoard());
+
+boardRoot.addEventListener('click', (e) => {
+  const btn = e.target.closest('#emptyDemoBtn');
+  if (!btn) return;
+  runDemoBoard();
 });
+
+function updateDemoPulse() {
+  const empty = !board.clusters.length;
+  demoBtn.classList.toggle('demo-pulse', empty);
+  demoBtn.textContent = empty ? 'Demo（一鍵長簇）' : 'Demo';
+}
 
 clearBtn.addEventListener('click', () => {
   if (!confirm('清空討論板（含主題簇與逐字）？')) return;
@@ -254,7 +279,9 @@ clearBtn.addEventListener('click', () => {
   logEl.innerHTML = '';
   setHeard('按「開始聽」後說話，或手動輸入', true);
   setStatus('已清空', false);
+  setMode('board');
   render();
+  updateDemoPulse();
 });
 
 fullBtn.addEventListener('click', () => {
@@ -342,4 +369,6 @@ else if (!window.isSecureContext) {
 
 setHeard('按「開始聽」後說話，或手動輸入', true);
 setActiveSpeaker('S1');
+setMode('board');
+updateDemoPulse();
 render();

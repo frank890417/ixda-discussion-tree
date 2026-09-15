@@ -240,16 +240,7 @@ body.mode-board .heard { top: 64px; font-size: clamp(14px, 2vw, 20px); opacity: 
 }
 
 /* Board */
-.board-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: var(--muted);
-  text-align: center;
-  gap: 6px;
-}
+
 .board-empty .dim { font-size: 13px; opacity: 0.8; }
 
 .cluster-grid {
@@ -417,3 +408,77 @@ body.mode-board .heard { top: 64px; font-size: clamp(14px, 2vw, 20px); opacity: 
 .transcript .log-speaker.S1 { color: var(--speaker-s1); }
 .transcript .log-speaker.S2 { color: var(--speaker-s2); }
 .transcript .log-speaker.S3 { color: var(--speaker-s3); }
+
+.board-empty {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.empty-card {
+  max-width: 520px;
+  width: 100%;
+  background: linear-gradient(160deg, rgba(125,255,163,0.12), rgba(255,255,255,0.04));
+  border: 1px solid rgba(125, 255, 163, 0.35);
+  border-radius: 20px;
+  padding: 28px 28px 24px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.35);
+  text-align: left;
+}
+.empty-kicker {
+  margin: 0 0 8px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 600;
+}
+.empty-card h2 {
+  margin: 0 0 12px;
+  font-size: clamp(20px, 3vw, 26px);
+  line-height: 1.35;
+  font-weight: 650;
+}
+.empty-body {
+  margin: 0 0 14px;
+  color: var(--fg);
+  font-size: 15px;
+  line-height: 1.55;
+  opacity: 0.92;
+}
+.empty-steps {
+  margin: 0 0 14px;
+  padding-left: 1.2em;
+  color: var(--fg);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.empty-note {
+  margin: 0 0 18px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.empty-demo-btn {
+  pointer-events: auto;
+  width: 100%;
+  border: 1px solid rgba(125, 255, 163, 0.45);
+  background: linear-gradient(135deg, #1d6b45, #0f3d2a);
+  color: var(--fg);
+  border-radius: 999px;
+  padding: 14px 18px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.empty-demo-btn:hover { filter: brightness(1.08); }
+
+.demo-pulse {
+  animation: demoPulse 1.2s ease-in-out infinite;
+  box-shadow: 0 0 0 0 rgba(125, 255, 163, 0.55);
+}
+@keyframes demoPulse {
+  0% { box-shadow: 0 0 0 0 rgba(125, 255, 163, 0.45); }
+  70% { box-shadow: 0 0 0 12px rgba(125, 255, 163, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(125, 255, 163, 0); }
+}
