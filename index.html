@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>呼吸群島 · 討論樹</title>
+<style>
+  :root {
+    --bg: #07090f;
+    --fg: #e8f0ea;
+    --muted: #8aa092;
+    --accent: #7dffa3;
+    --warn: #ffb86b;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%;
+    background: var(--bg); color: var(--fg);
+    font-family: "PingFang TC", "Noto Sans TC", "Helvetica Neue", sans-serif;
+    overflow: hidden;
+  }
+  canvas { display: block; width: 100vw; height: 100vh; }
+  .hud {
+    position: fixed; inset: 0; pointer-events: none;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 18px 20px; z-index: 2;
+  }
+  .top, .bottom { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .top { justify-content: space-between; }
+  .brand { pointer-events: none; }
+  .brand h1 {
+    margin: 0; font-size: 18px; font-weight: 600; letter-spacing: 0.04em;
+  }
+  .brand p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  .island {
+    pointer-events: auto;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: var(--fg);
+    border-radius: 999px;
+    padding: 8px 14px;
+    min-width: 160px;
+    outline: none;
+  }
+  .island:focus { border-color: var(--accent); }
+  .controls { pointer-events: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+  button {
+    pointer-events: auto;
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(255,255,255,0.08);
+    color: var(--fg);
+    border-radius: 999px;
+    padding: 10px 16px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  button.primary {
+    background: linear-gradient(135deg, #1d6b45, #0f3d2a);
+    border-color: rgba(125,255,163,0.35);
+  }
+  button.listening {
+    background: linear-gradient(135deg, #8a2e1a, #4a150c);
+    border-color: rgba(255,140,100,0.5);
+    box-shadow: 0 0 0 1px rgba(255,100,80,0.25), 0 0 24px rgba(255,80,60,0.2);
+  }
+  button:hover { filter: brightness(1.08); }
+  .status {
+    color: var(--muted); font-size: 13px; margin-left: 4px;
+  }
+  .status.on { color: var(--accent); }
+  .transcript {
+    pointer-events: none;
+    max-width: min(520px, 42vw);
+    max-height: 28vh;
+    overflow: hidden;
+    mask-image: linear-gradient(to bottom, transparent, black 18%, black 82%, transparent);
+    font-size: 13px; line-height: 1.45; color: var(--muted);
+  }
+  .transcript.hidden { display: none; }
+  .transcript .final { color: #cfe8d6; }
+  .transcript .interim { color: #6f8678; font-style: italic; }
+  .hint {
+    position: fixed; left: 50%; bottom: 72px; transform: translateX(-50%);
+    color: var(--muted); font-size: 12px; opacity: 0.7; pointer-events: none;
+    text-align: center;
+  }
+  .banner {
+    position: fixed; top: 64px; left: 50%; transform: translateX(-50%);
+    background: rgba(40,20,10,0.9); border: 1px solid rgba(255,184,107,0.4);
+    color: var(--warn); padding: 10px 14px; border-radius: 12px;
+    font-size: 13px; max-width: 90vw; z-index: 3; display: none;
+  }
+</style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <div class="banner" id="banner"></div>
+  <div class="hud">
+    <div class="top">
+      <div class="brand">
+        <h1>呼吸群島 · 討論樹</h1>
+        <p>本機語音辨識 · 愈說愈長</p>
+      </div>
+      <input class="island" id="island" value="未命名的島" maxlength="40" aria-label="島名" />
+    </div>
+    <div class="bottom">
+      <div class="controls">
+        <button class="primary" id="toggle">開始聽</button>
+        <button id="clear">清空</button>
+        <button id="full">全螢幕</button>
+        <button id="toggleLog">隱藏逐字</button>
+        <span class="status" id="status">待機</span>
+      </div>
+      <div class="transcript" id="log"></div>
+    </div>
+  </div>
+  <div class="hint">空白鍵：聽／停 · F：全螢幕 · C：清空 · 建議用 Chrome</div>
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const toggleBtn = document.getElementById('toggle');
+  const clearBtn = document.getElementById('clear');
+  const fullBtn = document.getElementById('full');
+  const toggleLogBtn = document.getElementById('toggleLog');
+  const statusEl = document.getElementById('status');
+  const logEl = document.getElementById('log');
+  const islandEl = document.getElementById('island');
+  const banner = document.getElementById('banner');
+
+  let W = 0, H = 0, dpr = 1;
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = Math.floor(W * dpr);
+    canvas.height = Math.floor(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const root = {
+    text: '呼吸',
+    x: 0, y: 0,
+    angle: -Math.PI / 2,
+    depth: 0,
+    children: [],
+    born: performance.now(),
+    energy: 1
+  };
+  let nodes = [root];
+  let listening = false;
+  let recognition = null;
+  let lines = [];
+  let pulse = 0;
+
+  function showBanner(msg) {
+    banner.textContent = msg;
+    banner.style.display = 'block';
+  }
+
+  function setStatus(text, on) {
+    statusEl.textContent = text;
+    statusEl.classList.toggle('on', !!on);
+  }
+
+  function addLog(text, kind) {
+    const div = document.createElement('div');
+    div.className = kind;
+    div.textContent = text;
+    logEl.prepend(div);
+    while (logEl.children.length > 40) logEl.lastChild.remove();
+  }
+
+  function tokenize(text) {
+    const cleaned = text.replace(/[，。！？、,.!?\s]+/g, ' ').trim();
+    if (!cleaned) return [];
+    // Prefer short Chinese chunks; fall back to whole utterance
+    const parts = cleaned.split(' ').filter(Boolean);
+    const out = [];
+    for (const p of parts) {
+      if ([...p].length <= 8) out.push(p);
+      else {
+        const chars = [...p];
+        for (let i = 0; i < chars.length; i += 4) {
+          out.push(chars.slice(i, i + 4).join(''));
+        }
+      }
+    }
+    return out.slice(0, 4);
+  }
+
+  function pickParent() {
+    // Prefer recent leafy nodes, bias shallower for balance
+    const candidates = nodes.filter(n => n.depth < 7);
+    candidates.sort((a, b) => (b.born - a.born) + (a.children.length - b.children.length) * 80);
+    return candidates[Math.floor(Math.random() * Math.min(5, candidates.length))] || root;
+  }
+
+  function addNode(text) {
+    const parent = pickParent();
+    const sibling = parent.children.length;
+    const spread = 0.55 + Math.random() * 0.35;
+    const base = parent.angle;
+    const offset = (sibling - (parent.children.length) / 2) * spread + (Math.random() - 0.5) * 0.2;
+    const node = {
+      text,
+      parent,
+      angle: base + offset,
+      depth: parent.depth + 1,
+      children: [],
+      born: performance.now(),
+      energy: 1,
+      len: 42 + Math.random() * 28 - parent.depth * 3,
+      x: parent.x,
+      y: parent.y
+    };
+    parent.children.push(node);
+    nodes.push(node);
+    pulse = 1;
+  }
+
+  function ingestUtterance(text) {
+    const bits = tokenize(text);
+    if (!bits.length) return;
+    for (const b of bits) addNode(b);
+  }
+
+  function layout() {
+    const ox = W * 0.5;
+    const oy = H * 0.78;
+    root.x = ox; root.y = oy;
+    function walk(n) {
+      for (const c of n.children) {
+        const targetX = n.x + Math.cos(c.angle) * c.len;
+        const targetY = n.y + Math.sin(c.angle) * c.len;
+        c.x += (targetX - c.x) * 0.18;
+        c.y += (targetY - c.y) * 0.18;
+        c.energy *= 0.985;
+        walk(c);
+      }
+    }
+    walk(root);
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    // soft vignette bg glow
+    const g = ctx.createRadialGradient(W/2, H*0.7, 20, W/2, H*0.55, Math.max(W,H)*0.7);
+    g.addColorStop(0, 'rgba(30,70,50,0.22)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    layout();
+    pulse *= 0.92;
+
+    function drawEdge(n) {
+      for (const c of n.children) {
+        const age = Math.min(1, (performance.now() - c.born) / 700);
+        ctx.beginPath();
+        ctx.moveTo(n.x, n.y);
+        const mx = (n.x + c.x) / 2 + Math.sin(c.angle) * 12 * age;
+        const my = (n.y + c.y) / 2 - Math.cos(c.angle) * 12 * age;
+        ctx.quadraticCurveTo(mx, my, c.x, c.y);
+        ctx.strokeStyle = `rgba(125,255,163,${0.18 + 0.35 * age})`;
+        ctx.lineWidth = Math.max(1, 4.5 - c.depth * 0.45);
+        ctx.stroke();
+        drawEdge(c);
+      }
+    }
+    drawEdge(root);
+
+    for (const n of nodes) {
+      const age = Math.min(1, (performance.now() - n.born) / 600);
+      const r = (n.depth === 0 ? 7 : 3.2) + pulse * 2;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = n.depth === 0
+        ? `rgba(125,255,163,${0.85})`
+        : `rgba(200,255,220,${0.35 + 0.5 * age})`;
+      ctx.fill();
+
+      if (n.text) {
+        ctx.font = n.depth === 0
+          ? '600 16px "PingFang TC", sans-serif'
+          : `${Math.max(12, 15 - n.depth)}px "PingFang TC", sans-serif`;
+        ctx.fillStyle = `rgba(232,240,234,${0.55 + 0.4 * age})`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        const label = n.depth === 0 ? (islandEl.value || n.text) : n.text;
+        ctx.fillText(label, n.x, n.y - 10);
+      }
+    }
+
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+
+  function supportsSpeech() {
+    return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  }
+
+  function startListening() {
+    if (!supportsSpeech()) {
+      showBanner('這個瀏覽器沒有本機語音辨識。請用桌面版 Chrome 打開本頁。');
+      return;
+    }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SR();
+    recognition.lang = 'zh-TW';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.onstart = () => {
+      listening = true;
+      toggleBtn.textContent = '停止聽';
+      toggleBtn.classList.add('listening');
+      setStatus('聆聽中', true);
+    };
+    recognition.onerror = (e) => {
+      if (e.error === 'not-allowed') {
+        showBanner('麥克風被拒絕了。請在瀏覽器允許麥克風後再按開始聽。');
+      } else if (e.error !== 'aborted') {
+        setStatus('辨識錯誤：' + e.error, false);
+      }
+    };
+    recognition.onend = () => {
+      if (listening) {
+        // Chrome stops periodically; auto-restart
+        try { recognition.start(); } catch (_) {}
+      } else {
+        toggleBtn.textContent = '開始聽';
+        toggleBtn.classList.remove('listening');
+        setStatus('待機', false);
+      }
+    };
+    recognition.onresult = (event) => {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const res = event.results[i];
+        const text = res[0].transcript.trim();
+        if (!text) continue;
+        if (res.isFinal) {
+          addLog(text, 'final');
+          ingestUtterance(text);
+        } else {
+          interim += text;
+        }
+      }
+      if (interim) {
+        // replace top interim line
+        const first = logEl.firstChild;
+        if (first && first.classList.contains('interim')) first.textContent = interim;
+        else addLog(interim, 'interim');
+      }
+    };
+    try {
+      recognition.start();
+    } catch (err) {
+      showBanner('無法啟動語音辨識：' + err.message);
+    }
+  }
+
+  function stopListening() {
+    listening = false;
+    if (recognition) {
+      try { recognition.stop(); } catch (_) {}
+      recognition = null;
+    }
+    toggleBtn.textContent = '開始聽';
+    toggleBtn.classList.remove('listening');
+    setStatus('待機', false);
+  }
+
+  toggleBtn.addEventListener('click', () => {
+    if (listening) stopListening();
+    else startListening();
+  });
+
+  clearBtn.addEventListener('click', () => {
+    if (!confirm('清空這棵樹？')) return;
+    root.children = [];
+    root.born = performance.now();
+    nodes = [root];
+    logEl.innerHTML = '';
+  });
+
+  fullBtn.addEventListener('click', () => {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  });
+
+  toggleLogBtn.addEventListener('click', () => {
+    const hidden = logEl.classList.toggle('hidden');
+    toggleLogBtn.textContent = hidden ? '顯示逐字' : '隱藏逐字';
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.target === islandEl) return;
+    if (e.code === 'Space') {
+      e.preventDefault();
+      toggleBtn.click();
+    } else if (e.key === 'f' || e.key === 'F') {
+      fullBtn.click();
+    } else if (e.key === 'c' || e.key === 'C') {
+      clearBtn.click();
+    }
+  });
+
+  if (!supportsSpeech()) {
+    showBanner('請用桌面版 Chrome 打開。Safari / 部分瀏覽器不支援本機語音辨識。');
+  }
+})();
+</script>
+</body>
+</html>
